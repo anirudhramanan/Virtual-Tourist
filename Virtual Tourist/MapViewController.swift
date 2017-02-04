@@ -51,4 +51,11 @@ extension MapViewController : MKMapViewDelegate {
          */
         mapView.addGestureRecognizer(gestureRecognizer)
     }
+    
+    func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+        let pinCoordinates: CLLocationCoordinate2D = view.annotation!.coordinate
+        let controller = self.storyboard!.instantiateViewController(withIdentifier: "PhotoAlbumView") as! PhotoAlbumViewController
+        controller.coordinates = pinCoordinates
+        self.navigationController?.pushViewController(controller, animated: true)
+    }
 }
