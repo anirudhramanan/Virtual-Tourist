@@ -13,7 +13,6 @@ import CoreData
 class MapViewController: UIViewController {
     
     @IBOutlet weak var mapView: MKMapView!
-    var gestureRecognizer: UIGestureRecognizer!
     var pins = [Pin]()
     var selectedPin: Pin!
     
@@ -24,13 +23,6 @@ class MapViewController: UIViewController {
     }
     
     @IBAction func addPinToMap(_ gestureRecognizer: UIGestureRecognizer) {
-        self.gestureRecognizer  = gestureRecognizer
-        
-        /* This is done to receive only one tap and hold gesture at a time. If the state of the gesture has begun, we remove
-         the gesture recognizer from the map view, and it is only add back when the annotation gets added on the mapview.
-         This way we can make sure that only one pin annotation can be added in a single tap and hold gesture.
-         */
-        
         if gestureRecognizer.state != UIGestureRecognizerState.ended {
             return
         }
