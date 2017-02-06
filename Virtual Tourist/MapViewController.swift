@@ -19,7 +19,6 @@ class MapViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         configureDelegate()
-        addSavedPinsToMap()
     }
     
     @IBAction func addPinToMap(_ gestureRecognizer: UIGestureRecognizer) {
@@ -31,16 +30,30 @@ class MapViewController: UIViewController {
         let locCoord: CLLocationCoordinate2D = mapView.convert(pinPoint, toCoordinateFrom: mapView)
         let annotation = MKPointAnnotation()
         annotation.coordinate = locCoord
-        self.mapView.addAnnotation(annotation)
         
-        let newPin = Pin(annotation.coordinate.latitude, annotation.coordinate.longitude)
-        pins.append(newPin)
-        selectedPin = newPin
-        try? CoreDataStack.sharedInstance().saveContext()
-        
-        FlickrClient.sharedInstance().fetchImagesFromFlickr(newPin, "1", {
-            (data, error) in
-
+        // Find out the location name based on the coordinates
+        let coordinates = CLLocation(latitude: annotation.coordinate.latitude, longitude: annotation.coordinate.longitude)
+        let geoCoder = CLGeocoder()
+        geoCoder.reverseGeocodeLocation(coordinates, completionHandler: { (placemark, error) -> Void in
+            if error != nil {
+                return
+            }
+            
+            if placemark!.count > 0 {
+                let pm = placemark![0] as CLPlacemark
+                if (pm.locality != nil) && (pm.country != nil) {
+                    // Assigning the city and country to the annotation's title
+                    annotation.title = "\(pm.locality!), \(pm.country!)"
+                } else {
+                    annotation.title = "Unknown"
+                }
+                
+                let newPin = Pin(annotation.coordinate.latitude, annotation.coordinate.longitude, annotation.title!)
+                self.pins.append(newPin)
+                self.selectedPin = newPin
+                self.mapView.addAnnotation(annotation)
+                try? CoreDataStack.sharedInstance().saveContext()
+            }
         })
     }
 }
@@ -49,20 +62,33 @@ extension MapViewController : MKMapViewDelegate {
     
     func configureDelegate () {
         mapView.delegate = self
+        addSavedPinsToMap()
     }
     
-    func mapView(_ mapView: MKMapView, didAdd views: [MKAnnotationView]) {
-        /*
-         Since the annotation pin has been added, enable the gesture recognizer to add another pin
-         */
+    func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        let reuseId = "pin"
+        var pinView = mapView.dequeueReusableAnnotationView(withIdentifier: reuseId) as? MKPinAnnotationView
+        
+        if pinView == nil {
+            pinView = MKPinAnnotationView(annotation: annotation, reuseIdentifier: reuseId)
+            pinView!.canShowCallout = true
+            pinView!.pinTintColor = .red
+            pinView!.rightCalloutAccessoryView = UIButton(type: .detailDisclosure)
+        } else {
+            pinView!.annotation = annotation
+        }
+        
+        return pinView
     }
     
-    func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-        let pinCoordinates: CLLocationCoordinate2D = view.annotation!.coordinate
-        let controller = self.storyboard!.instantiateViewController(withIdentifier: "PhotoAlbumView") as! PhotoAlbumViewController
-        controller.coordinates = pinCoordinates
-        controller.pin = selectedPin
-        self.navigationController?.pushViewController(controller, animated: true)
+    func mapView(_ mapView: MKMapView, annotationView view: MKAnnotationView, calloutAccessoryControlTapped control: UIControl) {
+        if control == view.rightCalloutAccessoryView {
+            let pinCoordinates: CLLocationCoordinate2D = view.annotation!.coordinate
+            let controller = self.storyboard!.instantiateViewController(withIdentifier: "PhotoAlbumView") as! PhotoAlbumViewController
+            controller.coordinates = pinCoordinates
+            controller.pin = selectedPin
+            self.navigationController?.pushViewController(controller, animated: true)
+        }
     }
 }
 
@@ -83,6 +109,7 @@ extension MapViewController {
             let annotation = MKPointAnnotation()
             annotation.coordinate.latitude = pin.latitude
             annotation.coordinate.longitude = pin.longitude
+            annotation.title = pin.title
             mapView.addAnnotation(annotation)
         }
     }
