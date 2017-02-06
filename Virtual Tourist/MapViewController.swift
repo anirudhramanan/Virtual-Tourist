@@ -18,7 +18,7 @@ class MapViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        configureDelegate()
+        configureMap()
     }
     
     @IBAction func addPinToMap(_ gestureRecognizer: UIGestureRecognizer) {
@@ -56,9 +56,12 @@ class MapViewController: UIViewController {
                 
                 FlickrClient.sharedInstance().fetchImagesFromFlickr(newPin, "1", {
                     (error) in
-                    let alert = UIAlertController(title: "Error", message: error, preferredStyle: UIAlertControllerStyle.actionSheet)
-                    alert.addAction(UIAlertAction(title: "Back", style: UIAlertActionStyle.default, handler: nil))
-                    self.present(alert, animated: true, completion: nil)
+                    
+                    if error != nil {
+                        let alert = UIAlertController(title: "Error", message: error, preferredStyle: UIAlertControllerStyle.actionSheet)
+                        alert.addAction(UIAlertAction(title: "Back", style: UIAlertActionStyle.default, handler: nil))
+                        self.present(alert, animated: true, completion: nil)
+                    }
                 })
             }
         })
@@ -67,7 +70,7 @@ class MapViewController: UIViewController {
 
 extension MapViewController : MKMapViewDelegate {
     
-    func configureDelegate () {
+    func configureMap () {
         mapView.delegate = self
         addSavedPinsToMap()
     }
@@ -88,14 +91,20 @@ extension MapViewController : MKMapViewDelegate {
         return pinView
     }
     
+    func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+        openPhotoAlbum(view: view)
+    }
+    
     func mapView(_ mapView: MKMapView, annotationView view: MKAnnotationView, calloutAccessoryControlTapped control: UIControl) {
-        if control == view.rightCalloutAccessoryView {
-            let pinCoordinates: CLLocationCoordinate2D = view.annotation!.coordinate
-            let controller = self.storyboard!.instantiateViewController(withIdentifier: "PhotoAlbumView") as! PhotoAlbumViewController
-            controller.coordinates = pinCoordinates
-            controller.pin = getSelectedPin(pinCoordinates.latitude, pinCoordinates.longitude)
-            self.navigationController?.pushViewController(controller, animated: true)
-        }
+        openPhotoAlbum(view: view)
+    }
+    
+    func openPhotoAlbum(view: MKAnnotationView) {
+        let pinCoordinates: CLLocationCoordinate2D = view.annotation!.coordinate
+        let controller = self.storyboard!.instantiateViewController(withIdentifier: "PhotoAlbumView") as! PhotoAlbumViewController
+        controller.coordinates = pinCoordinates
+        controller.pin = getSelectedPin(pinCoordinates.latitude, pinCoordinates.longitude)
+        self.navigationController?.pushViewController(controller, animated: true)
     }
 }
 
@@ -105,7 +114,7 @@ extension MapViewController {
         let request = NSFetchRequest<NSFetchRequestResult>(entityName: "Pin")
         do {
             return try CoreDataStack.sharedInstance().context.fetch(request) as! [Pin]
-        }catch {
+        } catch {
             return [Pin]()
         }
     }

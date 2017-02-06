@@ -15,10 +15,14 @@ class FlickrClient {
         let session: URLSession = URLSession.shared
         let task = session.dataTask(with: request as URLRequest) { (data, response, error) -> Void in
             if error != nil {
-                completionHandler(nil, response, error?.localizedDescription)
+                DispatchQueue.main.async {
+                    completionHandler(nil, response, error?.localizedDescription)
+                }
             }
             
-            completionHandler(data, response, nil)
+            DispatchQueue.main.async {
+                completionHandler(data, response, nil)
+            }
         }
         task.resume()
     }

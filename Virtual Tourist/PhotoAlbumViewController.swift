@@ -1,4 +1,4 @@
-//
+    //
 //  PhotoAlbumViewController.swift
 //  Virtual Tourist
 //
@@ -17,7 +17,6 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
     @IBOutlet weak var collectionView: UICollectionView!
     @IBOutlet weak var flowLayout: UICollectionViewFlowLayout!
     var pin: Pin?
-    var photos: [Photos]?
     
     lazy var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult> = {
         
@@ -29,7 +28,6 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         // Create fetched results controller with the new fetch request.
         let fetchedResultsController = NSFetchedResultsController<NSFetchRequestResult>(fetchRequest: fetchRequest, managedObjectContext: CoreDataStack.sharedInstance().context, sectionNameKeyPath: nil, cacheName: nil)
         
-        self.photos = try? CoreDataStack.sharedInstance().context.fetch(fetchRequest) as! [Photos]
         return fetchedResultsController
     }()
     
@@ -46,20 +44,25 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
 extension PhotoAlbumViewController {
     
     func fetchSavedPhotos() {
-        try? fetchedResultsController.performFetch()
-        fetchIfStoreEmpty()
+        try! fetchedResultsController.performFetch()
+        //if there are no photos saved, query the network
+        if fetchedResultsController.fetchedObjects?.count == 0 {
+            fetchIfStoreEmpty()
+        }
     }
     
     func fetchIfStoreEmpty() {
-        if photos?.count == 0 {
-            let pageNo: UInt32 = UInt32((pin?.pages)!) > 200 ? 200 : UInt32((pin?.pages)!)
-            FlickrClient.sharedInstance().fetchImagesFromFlickr(pin!, String(arc4random_uniform(pageNo) + 1), {
-                error in
-                
+        let pageNo: UInt32 = UInt32((pin?.pages)!) > 200 ? 200 : UInt32((pin?.pages)!)
+        FlickrClient.sharedInstance().fetchImagesFromFlickr(pin!, String(arc4random_uniform(pageNo) + 1), {
+            error in
+            
+            if error != nil {
                 let alert = UIAlertController(title: "Error", message: error, preferredStyle: UIAlertControllerStyle.actionSheet)
                 alert.addAction(UIAlertAction(title: "Back", style: UIAlertActionStyle.default, handler: nil))
                 self.present(alert, animated: true, completion: nil)
-            })
-        }
+            } else{
+                self.fetchSavedPhotos()
+            }
+        })
     }
 }

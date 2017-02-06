@@ -38,10 +38,14 @@ extension PhotoAlbumViewController : UICollectionViewDelegate, UICollectionViewD
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoAlbumCell", for: indexPath) as! PhotoAlbumCollectionViewCell
         let photos = fetchedResultsController.object(at: indexPath) as! Photos
-        FlickrClient.sharedInstance().fetchImages(photos, {
-            image in
-            cell.albumImage.image = image
-        })
+        
+        if  photos.url != nil {
+            FlickrClient.sharedInstance().fetchImages(photos, {
+                image in
+                cell.albumImage.image = image
+            })
+        }
+        
         return cell
     }
     
@@ -49,7 +53,6 @@ extension PhotoAlbumViewController : UICollectionViewDelegate, UICollectionViewD
         let photo = fetchedResultsController.object(at: indexPath) as! Photos
         CoreDataStack.sharedInstance().context.delete(photo)
         try? CoreDataStack.sharedInstance().saveContext()
-        photos?.remove(at: indexPath.row)
         fetchSavedPhotos()
         collectionView.reloadData()
     }

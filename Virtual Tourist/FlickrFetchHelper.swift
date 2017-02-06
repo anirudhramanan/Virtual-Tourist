@@ -11,21 +11,17 @@ import MapKit
 
 extension FlickrClient {
     func fetchImagesFromFlickr(_ pin: Pin,_ page: String,_ errorHandler: @escaping(_ error: String?) -> Void) -> Void {
-        let urlString = "https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=94ff58a573e8a2f6d5bba153a55faee3&lat=\(pin.latitude)&lon=\(pin.longitude)&extras=url_m&format=json&nojsoncallback=1&page=\(page)"
+        let urlString = FlickrConstants.BASE_URL + "?" + FlickrConstants.SEARCH_PHOTOS + "&api_key=" + FlickrConstants.API_KEY + "&lat=\(pin.latitude)&lon=\(pin.longitude)&extras=url_m&" + FlickrConstants.JSON_FORMAT + "&nojsoncallback=1&page=\(page)"
         
         taskForGETMethod(urlString: urlString, completionHandler: {
             (data, response, error) in
             
             if error != nil {
-                DispatchQueue.main.async {
-                    errorHandler(error)
-                }
+                errorHandler(error)
             }
             
             guard let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 200 && statusCode <= 299 else {
-                DispatchQueue.main.async {
-                    errorHandler("Something Went Wrong!")
-                }
+                errorHandler("Something Went Wrong!")
                 return
             }
             
@@ -44,6 +40,7 @@ extension FlickrClient {
             
             do {
                 try CoreDataStack.sharedInstance().saveContext()
+                errorHandler(nil)
             } catch {
                 print("Error while saving photo object")
             }
@@ -67,7 +64,7 @@ extension FlickrClient {
                 } catch {
                     print("Error saving context")
                 }
-                DispatchQueue.main.async() {
+                DispatchQueue.main.async {
                     completionHandler(image)
                 }
             }

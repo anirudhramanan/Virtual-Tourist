@@ -22,14 +22,19 @@ extension PhotoAlbumViewController {
         }
         
         try! CoreDataStack.sharedInstance().saveContext()
+        collectionView.reloadData()
         
-        let pageNo: UInt32 = UInt32((pin!.pages)) > 200 ? 200 : UInt32((pin!.pages))
+        let pageNo: UInt32 = UInt32((pin?.pages)!) > 200 ? 200 : UInt32((pin?.pages)!)
         FlickrClient.sharedInstance().fetchImagesFromFlickr(pin!, String(arc4random_uniform(pageNo) + 1), {
             error in
             
             if error != nil {
-                self.photos?.removeAll()
-                self.collectionView.reloadData()
+                let alert = UIAlertController(title: "Error", message: error, preferredStyle: UIAlertControllerStyle.actionSheet)
+                alert.addAction(UIAlertAction(title: "Back", style: UIAlertActionStyle.default, handler: nil))
+                self.present(alert, animated: true, completion: nil)
+            } else {
+                //since the data has been saved in core data, fetch the new results and display them
+                self.fetchSavedPhotos()
             }
         })
     }
