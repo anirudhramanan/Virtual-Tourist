@@ -10,7 +10,7 @@ import Foundation
 import MapKit
 
 extension FlickrClient {
-    func fetchImagesFromFlickr(_ pin: Pin,_ page: String,_ completionHandler: @escaping(_ data: Data?,_ error: String?) -> Void) -> Void {
+    func fetchImagesFromFlickr(_ pin: Pin,_ page: String,_ errorHandler: @escaping(_ error: String?) -> Void) -> Void {
         let urlString = "https://api.flickr.com/services/rest/?method=flickr.photos.search&api_key=94ff58a573e8a2f6d5bba153a55faee3&lat=\(pin.latitude)&lon=\(pin.longitude)&extras=url_m&format=json&nojsoncallback=1&page=\(page)"
         
         taskForGETMethod(urlString: urlString, completionHandler: {
@@ -18,13 +18,13 @@ extension FlickrClient {
             
             if error != nil {
                 DispatchQueue.main.async {
-                    completionHandler(nil, error)
+                    errorHandler(error)
                 }
             }
             
             guard let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 200 && statusCode <= 299 else {
                 DispatchQueue.main.async {
-                    completionHandler(nil, "Something Went Wrong!")
+                    errorHandler("Something Went Wrong!")
                 }
                 return
             }
@@ -37,61 +37,44 @@ extension FlickrClient {
             
             for p in photo {
                 guard let photoURLString = p["url_m"] as? String else {
-                    print("Error , photoDictionary")
                     continue
                 }
-                
-                let newPhoto = Photos(pin, photoURLString)
-                self.fetchImagesFromUrl(newPhoto, completionHandler: {
-                    (success, error) in
-                    
-                    DispatchQueue.main.async {
-                        try? CoreDataStack.sharedInstance().saveContext()
-                    }
-                })
+                _ = Photos(pin, photoURLString)
             }
             
-            DispatchQueue.main.async {
-                completionHandler(data, nil)
+            do {
+                try CoreDataStack.sharedInstance().saveContext()
+            } catch {
+                print("Error while saving photo object")
             }
         })
     }
     
-    func fetchImagesFromUrl(_ photo: Photos!, completionHandler: @escaping(_ success: Bool?,_ error: String?) -> Void) {
-        taskForGETMethod(urlString: photo.url!, completionHandler: {
-            (data, response, error) in
-            
-            if error != nil {
-                DispatchQueue.main.async {
-                    completionHandler(false, error)
+    func fetchImages(_ photo: Photos,_ completionHandler: @escaping(_ image: UIImage?) -> Void) {
+        guard let imageBlob: Data = photo.imageData as Data? else {
+            let url = URL(string: photo.url!)
+            let task = URLSession.shared.dataTask(with: url!) { (data, response, error) in
+                guard let httpURLResponse = response as? HTTPURLResponse, httpURLResponse.statusCode == 200,
+                    let mimeType = response?.mimeType, mimeType.hasPrefix("image"),
+                    let data = data, error == nil,
+                    let image = UIImage(data: data)
+                    else {
+                        return
+                }
+                photo.imageData = UIImagePNGRepresentation(image) as NSData?
+                do {
+                    try CoreDataStack.sharedInstance().saveContext()
+                } catch {
+                    print("Error saving context")
+                }
+                DispatchQueue.main.async() {
+                    completionHandler(image)
                 }
             }
-            
-            guard let statusCode = (response as? HTTPURLResponse)?.statusCode, statusCode >= 200 && statusCode <= 299 else {
-                DispatchQueue.main.async {
-                    completionHandler(false, "Something Went Wrong!")
-                }
-                return
-            }
-            
-            guard let result = data else{
-                DispatchQueue.main.async {
-                    completionHandler(false, error)
-                }
-                return
-            }
-            
-            let fileName = (photo.url! as NSString).lastPathComponent
-            let dirPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
-            let pathArray = [dirPath, fileName]
-            let fileURL = NSURL.fileURL(withPathComponents: pathArray)!
-            print(fileURL)
-            
-            FileManager.default.createFile(atPath: (fileURL.path), contents: result, attributes: nil)
-            
-            photo.imagePath = fileURL.path
+            task.resume()
+            return
+        }
         
-            completionHandler(true, nil)
-        })
+        completionHandler(UIImage(data: imageBlob as Data, scale: 1.0))
     }
 }

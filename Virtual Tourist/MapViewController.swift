@@ -53,6 +53,11 @@ class MapViewController: UIViewController {
                 self.selectedPin = newPin
                 self.mapView.addAnnotation(annotation)
                 try? CoreDataStack.sharedInstance().saveContext()
+                
+                FlickrClient.sharedInstance().fetchImagesFromFlickr(newPin, "1", {
+                    (error) in
+                    
+                })
             }
         })
     }
@@ -86,7 +91,7 @@ extension MapViewController : MKMapViewDelegate {
             let pinCoordinates: CLLocationCoordinate2D = view.annotation!.coordinate
             let controller = self.storyboard!.instantiateViewController(withIdentifier: "PhotoAlbumView") as! PhotoAlbumViewController
             controller.coordinates = pinCoordinates
-            controller.pin = selectedPin
+            controller.pin = getSelectedPin(pinCoordinates.latitude, pinCoordinates.longitude)
             self.navigationController?.pushViewController(controller, animated: true)
         }
     }
@@ -112,5 +117,14 @@ extension MapViewController {
             annotation.title = pin.title
             mapView.addAnnotation(annotation)
         }
+    }
+    
+    func getSelectedPin(_ lat: Double,_ long: Double) -> Pin {
+        for pin in pins {
+            if pin.latitude == lat && pin.longitude == long {
+                return pin
+            }
+        }
+        return Pin()
     }
 }

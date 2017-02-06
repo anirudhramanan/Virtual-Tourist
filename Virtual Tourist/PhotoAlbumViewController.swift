@@ -17,27 +17,30 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
     @IBOutlet weak var collectionView: UICollectionView!
     @IBOutlet weak var flowLayout: UICollectionViewFlowLayout!
     var pin: Pin?
-
+    var photos: [Photos]?
+    
     lazy var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult> = {
         
         // Create fetch request for photos which match the sent Pin.
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Photos")
-
-        // Sort the fetch request by title, ascending.
-        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "imagePath", ascending: true)]
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "url", ascending: true)]
+        fetchRequest.predicate = NSPredicate(format: "pin == %@", self.pin!)
         
         // Create fetched results controller with the new fetch request.
         let fetchedResultsController = NSFetchedResultsController<NSFetchRequestResult>(fetchRequest: fetchRequest, managedObjectContext: CoreDataStack.sharedInstance().context, sectionNameKeyPath: nil, cacheName: nil)
         
+        self.photos = try? CoreDataStack.sharedInstance().context.fetch(fetchRequest) as! [Photos]
         return fetchedResultsController
     }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         configureMapView()
-        fetchSavedPhotos()
         configureCollectionView()
         loadAnnotation()
+        
+        fetchSavedPhotos()
+        fetchIfStoreEmpty()
         fetchedResultsController.delegate = self
     }
 }
@@ -60,7 +63,7 @@ extension PhotoAlbumViewController: MKMapViewDelegate {
 }
 
 extension PhotoAlbumViewController : UICollectionViewDelegate, UICollectionViewDataSource {
-   
+    
     func configureCollectionView () {
         collectionView.delegate = self
         collectionView.dataSource = self
@@ -86,12 +89,23 @@ extension PhotoAlbumViewController : UICollectionViewDelegate, UICollectionViewD
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoAlbumCell", for: indexPath) as! PhotoAlbumCollectionViewCell
-        
-        let photo = fetchedResultsController.object(at: indexPath) as! Photos
-        
-        cell.albumImage.image = getImageFromPath(photo.imagePath!)
-        
+        let photos = fetchedResultsController.object(at: indexPath) as! Photos
+        FlickrClient.sharedInstance().fetchImages(photos, {
+            image in
+            cell.albumImage.image = image
+        })
         return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let photos = fetchedResultsController.object(at: indexPath) as! Photos
+        CoreDataStack.sharedInstance().context.delete(photos)
+        do {
+            try CoreDataStack.sharedInstance().saveContext()
+        } catch {
+            print("Error saving context")
+        }
+        fetchSavedPhotos()
     }
 }
 
@@ -101,12 +115,13 @@ extension PhotoAlbumViewController {
         try? fetchedResultsController.performFetch()
     }
     
-    func getImageFromPath(_ filePath: String) -> UIImage? {
-        let fileName = (filePath as NSString).lastPathComponent
-        let dirPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
-        let pathArray = [dirPath,fileName]
-        let fileURL = NSURL.fileURL(withPathComponents: pathArray)
-        
-        return UIImage(contentsOfFile: (fileURL!.path))
+    func fetchIfStoreEmpty() {
+        if photos?.count == 0 {
+            let pageNo: UInt32 = UInt32((pin?.pages)!) > 200 ? 200 : UInt32((pin?.pages)!)
+            FlickrClient.sharedInstance().fetchImagesFromFlickr(pin!, String(arc4random_uniform(pageNo) + 1), {
+                error in
+                
+            })
+        }
     }
 }
