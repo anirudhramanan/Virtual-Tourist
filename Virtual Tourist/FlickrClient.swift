@@ -10,15 +10,15 @@ import Foundation
 
 class FlickrClient {
     
-    func taskForGETMethod(urlString: String, completionHandler: @escaping (_ result: Data?, _ error: String?) -> Void) {
+    func taskForGETMethod(urlString: String, completionHandler: @escaping (_ result: Data?,_ response: URLResponse?, _ error: String?) -> Void) {
         let request = NSMutableURLRequest(url: URL(string: urlString)!)
         let session: URLSession = URLSession.shared
         let task = session.dataTask(with: request as URLRequest) { (data, response, error) -> Void in
             if error != nil {
-                completionHandler(nil, error?.localizedDescription)
+                completionHandler(nil, response, error?.localizedDescription)
             }
             
-            completionHandler(data, nil)
+            completionHandler(data, response, nil)
         }
         task.resume()
     }

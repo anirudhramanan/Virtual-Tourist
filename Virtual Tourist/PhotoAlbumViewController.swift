@@ -8,20 +8,37 @@
 
 import UIKit
 import MapKit
+import CoreData
 
-class PhotoAlbumViewController: UIViewController {
+class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDelegate {
     
     var coordinates: CLLocationCoordinate2D!
     @IBOutlet weak var mapView: MKMapView!
     @IBOutlet weak var collectionView: UICollectionView!
     @IBOutlet weak var flowLayout: UICollectionViewFlowLayout!
+    var pin: Pin?
 
+    lazy var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult> = {
+        
+        // Create fetch request for photos which match the sent Pin.
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Photos")
+
+        // Sort the fetch request by title, ascending.
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "imagePath", ascending: true)]
+        
+        // Create fetched results controller with the new fetch request.
+        let fetchedResultsController = NSFetchedResultsController<NSFetchRequestResult>(fetchRequest: fetchRequest, managedObjectContext: CoreDataStack.sharedInstance().context, sectionNameKeyPath: nil, cacheName: nil)
+        
+        return fetchedResultsController
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         configureMapView()
+        fetchSavedPhotos()
         configureCollectionView()
         loadAnnotation()
-        FlickrClient.sharedInstance().fetchImages(coordinates)
+        fetchedResultsController.delegate = self
     }
 }
 
@@ -63,11 +80,33 @@ extension PhotoAlbumViewController : UICollectionViewDelegate, UICollectionViewD
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return 10
+        let sectionInfo = self.fetchedResultsController.sections![section]
+        return sectionInfo.numberOfObjects
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoAlbumCell", for: indexPath) as! PhotoAlbumCollectionViewCell
+        
+        let photo = fetchedResultsController.object(at: indexPath) as! Photos
+        
+        cell.albumImage.image = getImageFromPath(photo.imagePath!)
+        
         return cell
+    }
+}
+
+extension PhotoAlbumViewController {
+    
+    func fetchSavedPhotos() {
+        try? fetchedResultsController.performFetch()
+    }
+    
+    func getImageFromPath(_ filePath: String) -> UIImage? {
+        let fileName = (filePath as NSString).lastPathComponent
+        let dirPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+        let pathArray = [dirPath,fileName]
+        let fileURL = NSURL.fileURL(withPathComponents: pathArray)
+        
+        return UIImage(contentsOfFile: (fileURL!.path))
     }
 }

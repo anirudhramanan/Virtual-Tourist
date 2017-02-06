@@ -69,6 +69,13 @@ struct CoreDataStack {
     func addStoreCoordinator(_ storeType: String, configuration: String?, storeURL: URL, options : [NSObject:AnyObject]?) throws {
         try coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil, at: dbURL, options: nil)
     }
+    
+    static func sharedInstance() -> CoreDataStack{
+        struct Singleton {
+            static var sharedInstance = CoreDataStack(modelName: "Model")
+        }
+        return Singleton.sharedInstance!
+    }
 }
 
 // MARK: - CoreDataStack (Removing Data)

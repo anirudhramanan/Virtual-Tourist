@@ -8,15 +8,19 @@
 
 import UIKit
 import MapKit
+import CoreData
 
 class MapViewController: UIViewController {
     
     @IBOutlet weak var mapView: MKMapView!
     var gestureRecognizer: UIGestureRecognizer!
+    var pins = [Pin]()
+    var selectedPin: Pin!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         configureDelegate()
+        addSavedPinsToMap()
     }
     
     @IBAction func addPinToMap(_ gestureRecognizer: UIGestureRecognizer) {
@@ -27,8 +31,8 @@ class MapViewController: UIViewController {
          This way we can make sure that only one pin annotation can be added in a single tap and hold gesture.
          */
         
-        if gestureRecognizer.state == UIGestureRecognizerState.began {
-            mapView.removeGestureRecognizer(gestureRecognizer)
+        if gestureRecognizer.state != UIGestureRecognizerState.ended {
+            return
         }
         
         let pinPoint: CGPoint = gestureRecognizer.location(in: mapView)
@@ -36,6 +40,16 @@ class MapViewController: UIViewController {
         let annotation = MKPointAnnotation()
         annotation.coordinate = locCoord
         self.mapView.addAnnotation(annotation)
+        
+        let newPin = Pin(annotation.coordinate.latitude, annotation.coordinate.longitude)
+        pins.append(newPin)
+        selectedPin = newPin
+        try? CoreDataStack.sharedInstance().saveContext()
+        
+        FlickrClient.sharedInstance().fetchImagesFromFlickr(newPin, "1", {
+            (data, error) in
+
+        })
     }
 }
 
@@ -49,13 +63,35 @@ extension MapViewController : MKMapViewDelegate {
         /*
          Since the annotation pin has been added, enable the gesture recognizer to add another pin
          */
-        mapView.addGestureRecognizer(gestureRecognizer)
     }
     
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
         let pinCoordinates: CLLocationCoordinate2D = view.annotation!.coordinate
         let controller = self.storyboard!.instantiateViewController(withIdentifier: "PhotoAlbumView") as! PhotoAlbumViewController
         controller.coordinates = pinCoordinates
+        controller.pin = selectedPin
         self.navigationController?.pushViewController(controller, animated: true)
+    }
+}
+
+extension MapViewController {
+    
+    func fetchSavedPins() -> [Pin] {
+        let request = NSFetchRequest<NSFetchRequestResult>(entityName: "Pin")
+        do {
+            return try CoreDataStack.sharedInstance().context.fetch(request) as! [Pin]
+        }catch {
+            return [Pin]()
+        }
+    }
+    
+    func addSavedPinsToMap() {
+        pins = fetchSavedPins()
+        for pin in pins {
+            let annotation = MKPointAnnotation()
+            annotation.coordinate.latitude = pin.latitude
+            annotation.coordinate.longitude = pin.longitude
+            mapView.addAnnotation(annotation)
+        }
     }
 }
