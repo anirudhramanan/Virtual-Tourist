@@ -56,7 +56,9 @@ class MapViewController: UIViewController {
                 
                 FlickrClient.sharedInstance().fetchImagesFromFlickr(newPin, "1", {
                     (error) in
-                    
+                    let alert = UIAlertController(title: "Error", message: error, preferredStyle: UIAlertControllerStyle.actionSheet)
+                    alert.addAction(UIAlertAction(title: "Back", style: UIAlertActionStyle.default, handler: nil))
+                    self.present(alert, animated: true, completion: nil)
                 })
             }
         })
