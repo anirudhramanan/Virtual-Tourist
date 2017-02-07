@@ -37,11 +37,12 @@ extension PhotoAlbumViewController : UICollectionViewDelegate, UICollectionViewD
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoAlbumCell", for: indexPath) as! PhotoAlbumCollectionViewCell
+        cell.albumImage.image = UIImage(named: "default")
         let photos = fetchedResultsController.object(at: indexPath) as! Photos
-        
         if  photos.url != nil {
             FlickrClient.sharedInstance().fetchImages(photos, {
                 image in
+                cell.activityIndicator.isHidden = true
                 cell.albumImage.image = image
             })
         }

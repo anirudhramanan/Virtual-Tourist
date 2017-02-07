@@ -10,8 +10,12 @@ import Foundation
 import MapKit
 
 extension FlickrClient {
-    func fetchImagesFromFlickr(_ pin: Pin,_ page: String,_ errorHandler: @escaping(_ error: String?) -> Void) -> Void {
-        let urlString = FlickrConstants.BASE_URL + "?" + FlickrConstants.SEARCH_PHOTOS + "&api_key=" + FlickrConstants.API_KEY + "&lat=\(pin.latitude)&lon=\(pin.longitude)&extras=url_m&" + FlickrConstants.JSON_FORMAT + "&nojsoncallback=1&page=\(page)"
+    
+    func fetchImagesFromFlickr(_ pin: Pin,_ page: String,_ errorHandler: @escaping(_ error: String?) -> Void,_ numberOfPages: @escaping(_ numberOfPages: Int32?) -> Void) -> Void {
+        let totalPages = Int32(page)!
+        let page = getRandomPage(totalPages) as Int
+        
+        let urlString = FlickrConstants.BASE_URL + "?" + FlickrConstants.SEARCH_PHOTOS + "&api_key=" + FlickrConstants.API_KEY + "&lat=\(pin.latitude)&lon=\(pin.longitude)&extras=url_m&" + FlickrConstants.JSON_FORMAT + "&nojsoncallback=1&page=\(page)&per_page=20"
         
         taskForGETMethod(urlString: urlString, completionHandler: {
             (data, response, error) in
@@ -30,6 +34,13 @@ extension FlickrClient {
             guard let photos = jsonData?["photos"] as? [String: AnyObject], let photo = photos["photo"] as? [[String: AnyObject]] else{
                 return
             }
+            
+            guard let pages = photos["pages"] as? Int32 else {
+                return
+            }
+            
+            // get the total pages of this result
+            numberOfPages(pages)
             
             for p in photo {
                 guard let photoURLString = p["url_m"] as? String else {
@@ -58,13 +69,13 @@ extension FlickrClient {
                     else {
                         return
                 }
-                photo.imageData = UIImagePNGRepresentation(image) as NSData?
-                do {
-                    try CoreDataStack.sharedInstance().saveContext()
-                } catch {
-                    print("Error saving context")
-                }
                 DispatchQueue.main.async {
+                    photo.imageData = UIImagePNGRepresentation(image) as NSData?
+                    do {
+                        try CoreDataStack.sharedInstance().saveContext()
+                    } catch {
+                        print("Error saving context")
+                    }
                     completionHandler(image)
                 }
             }
@@ -73,5 +84,14 @@ extension FlickrClient {
         }
         
         completionHandler(UIImage(data: imageBlob as Data, scale: 1.0))
+    }
+    
+    private func getRandomPage(_ page: Int32) -> Int {
+        var randomPage = 1
+        
+        if page > 0 {
+            randomPage = Int(arc4random_uniform(UInt32(page)))
+        }
+        return randomPage
     }
 }

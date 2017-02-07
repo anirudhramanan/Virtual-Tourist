@@ -17,6 +17,7 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
     @IBOutlet weak var collectionView: UICollectionView!
     @IBOutlet weak var flowLayout: UICollectionViewFlowLayout!
     var pin: Pin?
+    var totalPages: Int32?
     
     lazy var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult> = {
         
@@ -45,6 +46,7 @@ extension PhotoAlbumViewController {
     
     func fetchSavedPhotos() {
         try! fetchedResultsController.performFetch()
+        totalPages = Int32((pin?.pages)!)
         //if there are no photos saved, query the network
         if fetchedResultsController.fetchedObjects?.count == 0 {
             fetchIfStoreEmpty()
@@ -52,17 +54,16 @@ extension PhotoAlbumViewController {
     }
     
     func fetchIfStoreEmpty() {
-        let pageNo: UInt32 = UInt32((pin?.pages)!) > 200 ? 200 : UInt32((pin?.pages)!)
-        FlickrClient.sharedInstance().fetchImagesFromFlickr(pin!, String(arc4random_uniform(pageNo) + 1), {
+        let pageNo: UInt32 = UInt32((totalPages)!)
+        FlickrClient.sharedInstance().fetchImagesFromFlickr(pin!, String(pageNo), {
             error in
             
             if error != nil {
-                let alert = UIAlertController(title: "Error", message: error, preferredStyle: UIAlertControllerStyle.actionSheet)
-                alert.addAction(UIAlertAction(title: "Back", style: UIAlertActionStyle.default, handler: nil))
-                self.present(alert, animated: true, completion: nil)
-            } else{
-                self.fetchSavedPhotos()
+                self.showAlertView(error!)
             }
+        }, {
+            numberOfPages in
+            self.totalPages = numberOfPages
         })
     }
 }

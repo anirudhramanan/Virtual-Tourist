@@ -49,19 +49,20 @@ class MapViewController: UIViewController {
                 }
                 
                 let newPin = Pin(annotation.coordinate.latitude, annotation.coordinate.longitude, annotation.title!)
-                self.pins.append(newPin)
-                self.selectedPin = newPin
                 self.mapView.addAnnotation(annotation)
-                try? CoreDataStack.sharedInstance().saveContext()
                 
                 FlickrClient.sharedInstance().fetchImagesFromFlickr(newPin, "1", {
                     (error) in
                     
                     if error != nil {
-                        let alert = UIAlertController(title: "Error", message: error, preferredStyle: UIAlertControllerStyle.actionSheet)
-                        alert.addAction(UIAlertAction(title: "Back", style: UIAlertActionStyle.default, handler: nil))
-                        self.present(alert, animated: true, completion: nil)
+                        self.showAlertView(error!)
                     }
+                }, {
+                    numberOfPages in
+                    newPin.pages = Int32(numberOfPages!)
+                    self.pins.append(newPin)
+                    self.selectedPin = newPin
+                    try? CoreDataStack.sharedInstance().saveContext()
                 })
             }
         })
